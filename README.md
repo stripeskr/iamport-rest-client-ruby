@@ -73,7 +73,8 @@ Iamport.find("M00001")
 ##### 빌링키 발급/변경 요청 예시
 
 ```ruby
-Iamport.create_subscribe_customer("your_customer_1234", {
+# create_customer 로 바뀜
+Iamport.create_customer("your_customer_1234", {
   card_number: "1234-1234-1234-1234",
   expiry: "2019-07",
   birth: "801234",
