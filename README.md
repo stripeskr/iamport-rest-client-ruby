@@ -1,10 +1,28 @@
 # Iamport for Stripes.co.kr
 
-Ruby 사용자를 위한 아임포트 REST API 연동 모듈입니다. (0.3.0 버전에서 stripes 에서 수정하였습니다. )
+Ruby 사용자를 위한 아임포트 REST API 연동 모듈입니다. (0.3.0 버전에서 stripes 에서 수정하였습니다.)
 
 ## Code Status
 
 [![Build Status](https://travis-ci.com/stripeskr/iamport-rest-client-ruby.svg?branch=master)](https://travis-ci.com/stripeskr/iamport-rest-client-ruby)
+
+## 나의 업데이트 후기 0.2.x => 0.3.0
+* 코드가 새로운 것이 있나 하고 merge 를 해봄
+* 함수명 변경이 좀 있었음 subscribe 라는 단어가 다 빠지고 다음과 같이 존재  
+```
+def create_payment_again; end
+def create_customer; end
+```
+* spec/iamport_spec.rb:200 에서 pwd_2digit 이 없는데도 테스트 통과
+* 즉, 실제 카드정보 넣고 결제를 돌려봐야 함 Project-C 에 테스트 코드 이관 함  
+* 부족한거 미비한 것은 채워 넣으면 되는데 함수명을 마음대로 바꾸는 것을 merge 한다는 것은 ... 음
+
+## 결론
+```
+0.3.0 이상 부터는 iamport 에서 제공하는 것은 안쓰는 걸로
+버그잡고 하는 공수가 너무 많이 듬 
+```
+ 
 
 # 세팅하는 방법
 
@@ -22,15 +40,10 @@ end
 Iamport.token
 ```
 
-## payment API
-
-```ruby
-Iamport.payment("IMP_UID")
-```
-
 ## payments API
 
 ```ruby
+Iamport.payment("IMP_UID")
 Iamport.payments
 Iamport.payments(status: "paid")
 Iamport.payments(status: "paid", page: 2)
@@ -67,22 +80,25 @@ Iamport.cancel(body)
 Iamport.find("M00001")
 ```
 
-## subscribe_customer API
-카드정보를 카드사에 요청하여 빌링키를 발급하는 API
+## 사용방법
 
 ##### 빌링키 발급/변경 요청 예시
 
 ```ruby
 # create_customer 로 바뀜
-Iamport.create_customer("your_customer_1234", {
-  card_number: "1234-1234-1234-1234",
-  expiry: "2019-07",
-  birth: "801234",
-  pwd_2digit: "00",
-  customer_email: "user@your_customer.com",
-  customer_name: "홍길동",
-  customer_tel: "010-1234-5678"
-})
+customer_uid = "your_customer_1234" 
+
+Iamport.create_customer(
+    customer_uid, {
+      card_number: "1234-1234-1234-1234",
+      expiry: "2019-07",
+      birth: "801234",
+      pwd_2digit: "00",
+      customer_email: "user@your_customer.com",
+      customer_name: "홍길동",
+      customer_tel: "010-1234-5678"
+    }
+)
 ```
 
 &#8251; *필수 항목 : `card_number`, `expiry`, `birth`, `pwd_2digit`*<br />
@@ -115,18 +131,52 @@ Iamport.create_customer("your_customer_1234", {
  "response"=>nil}
 ```
 
-##### 결제 정보 조회
-정상결제 
+##### 발급된 빌링키로 결제
+```ruby
+res = Iamport.create_payment_again(
+      customer_uid: customer_uid,
+      merchant_uid: merchant_uid,
+      amount: amount,
+      name: name,
+      buyer_name: 'TEST_NAME',
+      buyer_tel: 'TEST_TEL'
+)
+
+imp_uid = res['response']['imp_uid']
 ```
-Iamport.payment_status(imp_uid) ==> 'paid'
+
+##### 결제 조회 (imp_uid 이용)
+```ruby
+res = Iamport.payment(imp_uid)
+
+expect(res['code']).to eq(0)
+expect(res['response']['imp_uid']).not_to be_nil
+expect(res['response']['merchant_uid']).to eq(merchant_uid)
+expect(res['response']['amount']).to eq(amount)
+expect(res['response']['name']).to eq(name)
+expect(res['response']['buyer_name']).to eq('TEST_NAME')
+expect(res['response']['buyer_tel']).to eq('TEST_TEL')
 ```
-취소된결제
+
+##### 결제 취소 (imp_uid 이용)
+```ruby
+res = Iamport.cancel(imp_uid: imp_uid)
+
+expect(res['response']['status']).to eq('cancelled')
 ```
-Iamport.payment_status(imp_uid) ==> 'cancelled'
+
+## 결제 상태만 조회
+##### 정상결제 
+```ruby
+Iamport.payment_status(imp_uid) # ==> 'paid'
 ```
-존재하지 않는 imp_uid
+##### 취소된결제
+```ruby
+Iamport.payment_status(imp_uid) # ==> 'cancelled'
 ```
-Iamport.payment_status(imp_uid) ==> '존재하지 않는 결제정보입니다.'
+##### 존재하지 않는 imp_uid
+```ruby
+Iamport.payment_status(imp_uid) # ==> '존재하지 않는 결제정보입니다.'
 ```
 
 
@@ -150,10 +200,6 @@ Or install it yourself as:
 ```shell
 $ gem install iamport
 ```
-
-## Usage
-
-TODO: Write usage instructions here
 
 ## Development
 
